@@ -62,37 +62,6 @@ docker exec -it <container_name_or_id> /bin/bash
 
 
 
-
-Step 1: Install SonarQube Scanner in the Jenkins Container
-
-    Access the Jenkins Container: You can start a shell inside your Jenkins container to install the scanner manually or update the Jenkins container's Dockerfile if you want a more permanent solution.
-
-    bash
-
-docker exec -it jenkins /bin/bash
-
-Download and Install SonarQube Scanner: Install the SonarQube Scanner by following these steps inside the Jenkins container:
-
-bash
-
-# Download the SonarQube Scanner
-wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.6.2.2472-linux.zip
-
-# Unzip the downloaded file
-unzip sonar-scanner-cli-4.6.2.2472-linux.zip
-
-# Move the scanner to a directory in your PATH, such as /usr/local/bin
-mv sonar-scanner-4.6.2.2472-linux /usr/local/sonar-scanner
-
-# Add the scanner to the PATH
-export PATH=$PATH:/usr/local/sonar-scanner/bin
-
-Note: Adding the scanner to the PATH is temporary. To make it persistent, add this line to the Jenkins container’s .bashrc file or update the container’s Dockerfile if you're building Jenkins from scratch.
-
-Verify Installation: Run the following to check if the SonarQube Scanner is available:
-
-bash
-
     sonar-scanner --version
 
 Step 2: Configure Jenkins Pipeline to Use SonarQube Scanner
@@ -227,3 +196,51 @@ RUN wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-s
 
 # Switch back to Jenkins user
 USER jenkins
+
+Or, if you’re modifying the Dockerfile for a Jenkins image, you can add:
+
+dockerfile:
+
+RUN mv sonar-scanner-4.6.2.2472-linux /usr/local/sonar-scanner && \
+    ln -s /usr/local/sonar-scanner/bin/sonar-scanner /usr/local/bin/sonar-scanner
+ENV PATH="$PATH:/usr/local/sonar-scanner/bin"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1. Update the sonar-project.properties file
+
+In your Node.js project, update the sonar-project.properties file to the following:
+
+sonar.projectKey=hello-world
+sonar.sources=.
+sonar.host.url=http://sonarqube:9000
+sonar.login=sqp_c48c24e264bed6822ae4f2bc9dcfd30737b104e4
+
+2. Ensure Both Containers are on the Same Docker Network
+
+If you're running both containers separately, you can ensure they are on the same network. Here's how:
+Create a custom Docker network (if not already done):
+
+docker network create sonarqube_network
+
+Re-run both SonarQube and Jenkins containers with the same network:
+
+# Run SonarQube with the custom network
+docker run -d --name sonarqube --network sonarqube_network -p 9000:9000 sonarqube:latest
+
+# Run Jenkins with the custom network
+docker run -d --name jenkins --network sonarqube_network -p 8080:8080 -p 50000:50000 jenkins/jenkins:lts
+
